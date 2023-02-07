@@ -21,12 +21,12 @@ Usage: queries local ics file and displays today's and tomorrow's events in Conk
 ${execp ~/path/to/conkycalendar.py --file ~/path/to/calendar.ics}
 """
 import re
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 import argparse
 import dateutil.rrule as rrule
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--file',nargs=1,required=True)
+parser.add_argument('--file', nargs=1, required=True)
 
 try:
 	args = parser.parse_args()
@@ -49,52 +49,52 @@ try:
 	for event in events:
 		allday = False
 
-		eventDateTime = re.search('DTSTART.*:.*\n',event)
-		if eventDateTime == None:
+		eventDateTime = re.search('DTSTART.*:.*\n', event)
+		if eventDateTime is None:
 			continue
-		eventDateTime = re.sub('.*:','',eventDateTime[0]).strip()
+		eventDateTime = re.sub('.*:', '', eventDateTime[0]).strip()
 
 		if len(eventDateTime) == 15:
-			eventDateTime = datetime.strptime(eventDateTime,'%Y%m%dT%H%M%S')
-		elif len(eventDateTime) == 8: #All day event - only date
-			eventDateTime = datetime.strptime(eventDateTime,'%Y%m%d')
+			eventDateTime = datetime.strptime(eventDateTime, '%Y%m%dT%H%M%S')
+		elif len(eventDateTime) == 8:  # All day event - only date
+			eventDateTime = datetime.strptime(eventDateTime, '%Y%m%d')
 			allday = True
 
 		# Reccurring events
 		if 'RRULE' in event:
-			ruletext = re.search('RRULE:.*\n',event)
+			ruletext = re.search('RRULE:.*\n', event)
 			ruletext = ruletext[0][6:]
 			rule = rrule.rrulestr(ruletext, dtstart=eventDateTime)
-			eventDateTime = rule.after(datetime.now() - timedelta(days=1)) # rule.after() ignores events after now. Inc all-dayers after midnight
+			eventDateTime = rule.after(datetime.now() - timedelta(days=1))  # rule.after() ignores events after now. Inc all-dayers after midnight
 
 		if datetime.now().date() == eventDateTime.date():
 			if 'SUMMARY' in event:
-				summary = re.search('SUMMARY.*:.*\n',event)
-				summary = re.sub('.*:','',summary[0]).strip()
+				summary = re.search('SUMMARY.*:.*\n', event)
+				summary = re.sub('.*:', '', summary[0]).strip()
 			else:
 				summary = ''
 			if 'LOCATION' in event:
-				loc = re.search('LOCATION.*:.*\n',event)
-				loc = '\n\t' + re.sub('.*:','',loc[0]).strip()
+				loc = re.search('LOCATION.*:.*\n', event)
+				loc = '\n\t' + re.sub('.*:', '', loc[0]).strip()
 			else:
 				loc = ''
-			if allday == False:
-				if datetime.now() < eventDateTime + timedelta(hours=1): # So it stays up for an hour after its time
+			if allday is False:
+				if datetime.now() < eventDateTime + timedelta(hours=1):  # So it stays up for an hour after its time
 					today.append(eventDateTime.time().strftime('%H:%M') + ' -- ' + summary + loc)
 			else:
-					today.append(' ' + summary + loc)
+				today.append(' ' + summary + loc)
 		elif datetime.now().date() + timedelta(days=1) == eventDateTime.date():
 			if 'SUMMARY' in event:
-				summary = re.search('SUMMARY.*:.*\n',event)
-				summary = re.sub('.*:','',summary[0]).strip()
+				summary = re.search('SUMMARY.*:.*\n', event)
+				summary = re.sub('.*:', '', summary[0]).strip()
 			else:
 				summary = ''
 			if 'LOCATION' in event:
-				loc = re.search('LOCATION.*:.*\n',event)
-				loc = '\n\t' + re.sub('.*:','',loc[0]).strip()
+				loc = re.search('LOCATION.*:.*\n', event)
+				loc = '\n\t' + re.sub('.*:', '', loc[0]).strip()
 			else:
 				loc = ''
-			if allday == False:
+			if allday is False:
 				tomorrow.append(eventDateTime.time().strftime('%H:%M') + ' -- ' + summary + loc)
 			else:
 				tomorrow.append(' ' + summary + loc)
@@ -107,9 +107,8 @@ try:
 	if len(tomorrow) > 0:
 		tomorrow.sort()
 		weekday = (datetime.now().date() + timedelta(days=1)).strftime('%A')
-		print('${voffset 3}------',weekday,'------${voffset 3}')
+		print('${voffset 3}------', weekday, '------${voffset 3}')
 		for entry in tomorrow:
 			print(entry)
 except Exception as e:
 	print("Some error in processing data:", e)
-
