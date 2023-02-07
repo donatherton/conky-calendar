@@ -14,7 +14,7 @@
 #
 # Author: Don Atherton
 # Web: https://donatherton.co.uk
-# WeatherWidget (c) Don Atherton don@donatherton.co.uk
+# ConkyCalendar (c) Don Atherton don@donatherton.co.uk
 
 """
 Usage: queries local ics file and displays today's and tomorrow's events in Conky. Set Conky to update when required.
