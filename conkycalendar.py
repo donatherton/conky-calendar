@@ -14,7 +14,7 @@
 #
 # Author: Don Atherton
 # Web: https://donatherton.co.uk
-# ConkyCalendar (c) Don Atherton don@donatherton.co.uk
+# Conkycalendar (c) Don Atherton don@donatherton.co.uk
 
 """
 Usage: queries local ics file and displays today's and tomorrow's events in Conky. Set Conky to update when required.
@@ -27,13 +27,42 @@ import dateutil.rrule as rrule
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--file', nargs=1, required=True)
-
 try:
 	args = parser.parse_args()
+	calendar_location = args.file[0]
 except:
 	print("No file location given")
 
-calendar_location = args.file[0]
+def unescape(component):
+	text = re.sub('^.*?:', '', component[0].strip())
+	# NOTE: ORDER MATTERS!
+	if isinstance(text, str):
+		return text.replace('\\N', '\\n')\
+			       .replace('\r\n', '\n')\
+			       .replace('\\n', '\n')\
+			       .replace('\\,', ',')\
+			       .replace('\\;', ';')\
+			       .replace('\\\\', '\\')
+	elif isinstance(text, bytes):
+		return text.replace(b'\\N', b'\\n')\
+			       .replace(b'\r\n', b'\n')\
+			       .replace(b'\n', b'\n')\
+			       .replace(b'\\,', b',')\
+			       .replace(b'\\;', b';')\
+			       .replace(b'\\\\', b'\\')
+
+def process_events(event):
+	if 'SUMMARY' in event:
+		summary = re.search('SUMMARY.*:.*\n', event)
+		summary = unescape(summary)
+	else:
+		summary = ''
+	if 'LOCATION' in event:
+		loc = re.search('LOCATION.*:.*\n', event)
+		loc = '\n\t' + unescape(loc)
+	else:
+		loc = ''
+	return summary, loc
 
 try:
 	calendar_file = open(calendar_location)
@@ -52,10 +81,12 @@ try:
 		eventDateTime = re.search('DTSTART.*:.*\n', event)
 		if eventDateTime is None:
 			continue
-		eventDateTime = re.sub('.*:', '', eventDateTime[0]).strip()
 
+		eventDateTime = re.sub('^.*?:', '', eventDateTime[0]).strip()
 		if len(eventDateTime) == 15:
 			eventDateTime = datetime.strptime(eventDateTime, '%Y%m%dT%H%M%S')
+		elif len(eventDateTime) == 16:
+			eventDateTime = datetime.strptime(eventDateTime, '%Y%m%dT%H%M%SZ')
 		elif len(eventDateTime) == 8:  # All day event - only date
 			eventDateTime = datetime.strptime(eventDateTime, '%Y%m%d')
 			allday = True
@@ -65,35 +96,17 @@ try:
 			ruletext = re.search('RRULE:.*\n', event)
 			ruletext = ruletext[0][6:]
 			rule = rrule.rrulestr(ruletext, dtstart=eventDateTime)
-			eventDateTime = rule.after(datetime.now() - timedelta(days=1))  # rule.after() ignores events after now. Inc all-dayers after midnight
+			eventDateTime = rule.after(datetime.now() - timedelta(days=1))  # Include today
 
 		if datetime.now().date() == eventDateTime.date():
-			if 'SUMMARY' in event:
-				summary = re.search('SUMMARY.*:.*\n', event)
-				summary = re.sub('.*:', '', summary[0]).strip()
-			else:
-				summary = ''
-			if 'LOCATION' in event:
-				loc = re.search('LOCATION.*:.*\n', event)
-				loc = '\n\t' + re.sub('.*:', '', loc[0]).strip()
-			else:
-				loc = ''
+			summary, loc = process_events(event)
 			if allday is False:
 				if datetime.now() < eventDateTime + timedelta(hours=1):  # So it stays up for an hour after its time
 					today.append(eventDateTime.time().strftime('%H:%M') + ' -- ' + summary + loc)
 			else:
 				today.append(' ' + summary + loc)
 		elif datetime.now().date() + timedelta(days=1) == eventDateTime.date():
-			if 'SUMMARY' in event:
-				summary = re.search('SUMMARY.*:.*\n', event)
-				summary = re.sub('.*:', '', summary[0]).strip()
-			else:
-				summary = ''
-			if 'LOCATION' in event:
-				loc = re.search('LOCATION.*:.*\n', event)
-				loc = '\n\t' + re.sub('.*:', '', loc[0]).strip()
-			else:
-				loc = ''
+			summary, loc = process_events(event)
 			if allday is False:
 				tomorrow.append(eventDateTime.time().strftime('%H:%M') + ' -- ' + summary + loc)
 			else:
@@ -103,12 +116,12 @@ try:
 		today.sort()
 		print('------ Today ------${voffset 3}')
 		for entry in today:
-			print(entry)
+			print(entry, '${voffset 3}')
 	if len(tomorrow) > 0:
 		tomorrow.sort()
 		weekday = (datetime.now().date() + timedelta(days=1)).strftime('%A')
 		print('${voffset 3}------', weekday, '------${voffset 3}')
 		for entry in tomorrow:
-			print(entry)
+			print(entry, '${voffset 3}')
 except Exception as e:
-	print("Some error in processing data:", e)
+	print("Error:", e)
